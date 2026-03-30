@@ -62,7 +62,7 @@ func Defaults() *Config {
 			Default: "ptt",
 		},
 		Hotkey: HotkeyConfig{
-			PTTKey:    "KEY_MEDIA",
+			PTTKey:    "KEY_LEFTCTRL+KEY_BACKSLASH",
 			ToggleKey: "KEY_PAUSE",
 		},
 		Inject: InjectConfig{

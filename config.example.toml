@@ -23,7 +23,7 @@ default = "ptt"
 
 [hotkey]
 # Push-to-talk key (evdev key name)
-ptt_key = "KEY_MEDIA"
+ptt_key = "KEY_LEFTCTRL+KEY_BACKSLASH"
 # Toggle dictation on/off
 toggle_key = "KEY_PAUSE"
 

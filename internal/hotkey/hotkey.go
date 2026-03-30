@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
+	"syscall"
 	"unsafe"
 )
 
@@ -27,24 +27,46 @@ type inputEvent struct {
 }
 
 const (
-	evKey     = 0x01
-	keyPress  = 1
+	evKey      = 0x01
+	keyPress   = 1
 	keyRelease = 0
+
+	// ioctl to test if a key code is supported by the device
+	eviocgbit0 = 0x80084520 // EVIOCGBIT(EV_SYN, 32)
+	eviocgbit1 = 0x80604521 // EVIOCGBIT(EV_KEY, 96*8)
 )
+
+// hotCombo represents a key combination (modifier + key).
+type hotCombo struct {
+	modifier uint16 // 0 = no modifier required
+	key      uint16
+}
 
 // Listener watches /dev/input/event* for configured hotkeys.
 type Listener struct {
-	pttKey    uint16
-	toggleKey uint16
-	eventCh   chan<- Event
+	pttCombo    hotCombo
+	toggleCombo hotCombo
+	eventCh     chan<- Event
 }
 
 func NewListener(pttKeyName, toggleKeyName string, eventCh chan<- Event) *Listener {
 	return &Listener{
-		pttKey:    keyNameToCode(pttKeyName),
-		toggleKey: keyNameToCode(toggleKeyName),
-		eventCh:   eventCh,
+		pttCombo:    parseCombo(pttKeyName),
+		toggleCombo: parseCombo(toggleKeyName),
+		eventCh:     eventCh,
 	}
+}
+
+// parseCombo parses "KEY_LEFTCTRL+KEY_BACKSLASH" or "KEY_F12" into a hotCombo.
+func parseCombo(name string) hotCombo {
+	parts := strings.Split(name, "+")
+	if len(parts) == 2 {
+		return hotCombo{
+			modifier: keyNameToCode(parts[0]),
+			key:      keyNameToCode(parts[1]),
+		}
+	}
+	return hotCombo{key: keyNameToCode(name)}
 }
 
 // Run scans for keyboard devices and monitors them for hotkey events.
@@ -57,8 +79,11 @@ func (l *Listener) Run(ctx context.Context) error {
 		return fmt.Errorf("no keyboard devices found in /dev/input/")
 	}
 
-	log.Printf("hotkey: monitoring %d device(s), ptt=0x%x toggle=0x%x",
-		len(devices), l.pttKey, l.toggleKey)
+	log.Printf("hotkey: monitoring %d keyboard device(s), ptt=%s toggle=%s",
+		len(devices), comboStr(l.pttCombo), comboStr(l.toggleCombo))
+	for _, d := range devices {
+		log.Printf("hotkey:   %s", d)
+	}
 
 	errCh := make(chan error, len(devices))
 	for _, dev := range devices {
@@ -78,12 +103,34 @@ func (l *Listener) Run(ctx context.Context) error {
 func (l *Listener) monitorDevice(ctx context.Context, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("open %s: %w", path, err)
+		log.Printf("hotkey: skipping %s: %v", path, err)
+		return nil
 	}
 	defer f.Close()
 
+	fd := int(f.Fd())
 	evSize := int(unsafe.Sizeof(inputEvent{}))
 	buf := make([]byte, evSize)
+
+	// Use epoll to make reads cancellable via context
+	epfd, err := syscall.EpollCreate1(0)
+	if err != nil {
+		return fmt.Errorf("epoll_create: %w", err)
+	}
+	defer syscall.Close(epfd)
+
+	err = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{
+		Events: syscall.EPOLLIN,
+		Fd:     int32(fd),
+	})
+	if err != nil {
+		return fmt.Errorf("epoll_ctl: %w", err)
+	}
+
+	events := make([]syscall.EpollEvent, 1)
+
+	// Track held keys for modifier combos
+	heldKeys := make(map[uint16]bool)
 
 	for {
 		select {
@@ -92,16 +139,23 @@ func (l *Listener) monitorDevice(ctx context.Context, path string) error {
 		default:
 		}
 
-		// Set read deadline to avoid blocking forever
-		f.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		n, err := f.Read(buf)
+		// Wait up to 500ms for data
+		n, err := syscall.EpollWait(epfd, events, 500)
 		if err != nil {
-			if os.IsTimeout(err) {
+			if err == syscall.EINTR {
 				continue
 			}
+			return fmt.Errorf("epoll_wait %s: %w", path, err)
+		}
+		if n == 0 {
+			continue // timeout, check ctx
+		}
+
+		nread, err := f.Read(buf)
+		if err != nil {
 			return fmt.Errorf("read %s: %w", path, err)
 		}
-		if n < evSize {
+		if nread < evSize {
 			continue
 		}
 
@@ -114,40 +168,100 @@ func (l *Listener) monitorDevice(ctx context.Context, path string) error {
 			continue
 		}
 
-		var keyName string
-		var matched bool
-		if ev.Code == l.pttKey {
-			keyName = "ptt"
-			matched = true
-		} else if ev.Code == l.toggleKey {
-			keyName = "toggle"
-			matched = true
+		// Track key state
+		if ev.Value == keyPress {
+			heldKeys[ev.Code] = true
+		} else if ev.Value == keyRelease {
+			delete(heldKeys, ev.Code)
 		}
 
-		if matched && (ev.Value == keyPress || ev.Value == keyRelease) {
-			select {
-			case l.eventCh <- Event{Key: keyName, Pressed: ev.Value == keyPress}:
-			default:
+		// Check combos
+		for _, combo := range []struct {
+			name string
+			c    hotCombo
+		}{
+			{"ptt", l.pttCombo},
+			{"toggle", l.toggleCombo},
+		} {
+			if ev.Code != combo.c.key {
+				continue
+			}
+			// If combo has a modifier, check it's held
+			if combo.c.modifier != 0 && !heldKeys[combo.c.modifier] {
+				continue
+			}
+			if ev.Value == keyPress || ev.Value == keyRelease {
+				pressed := ev.Value == keyPress
+				log.Printf("hotkey: %s %s (code=%d) from %s",
+					combo.name, map[bool]string{true: "pressed", false: "released"}[pressed], ev.Code, path)
+				select {
+				case l.eventCh <- Event{Key: combo.name, Pressed: pressed}:
+				default:
+				}
 			}
 		}
 	}
 }
 
+// findKeyboardDevices returns event devices that support EV_KEY with common keyboard keys.
 func findKeyboardDevices() ([]string, error) {
 	matches, err := filepath.Glob("/dev/input/event*")
 	if err != nil {
 		return nil, err
 	}
-	// Return all event devices; filtering by capability would require ioctl
-	// which adds complexity. Reading non-keyboard devices is harmless.
-	var accessible []string
-	for _, m := range matches {
-		if f, err := os.Open(m); err == nil {
-			f.Close()
-			accessible = append(accessible, m)
+
+	var keyboards []string
+	for _, path := range matches {
+		f, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		if isKeyboard(f) {
+			keyboards = append(keyboards, path)
+		}
+		f.Close()
+	}
+	return keyboards, nil
+}
+
+// isKeyboard checks if the device supports EV_KEY with KEY_A (code 30).
+// This filters out non-keyboard devices like lid switches, power buttons, etc.
+func isKeyboard(f *os.File) bool {
+	// Check which event types are supported
+	var evBits [4]byte
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(),
+		uintptr(eviocgbit0), uintptr(unsafe.Pointer(&evBits[0])))
+	if errno != 0 {
+		return false
+	}
+	// Check EV_KEY bit (bit 1)
+	if evBits[0]&(1<<evKey) == 0 {
+		return false
+	}
+
+	// Check if KEY_A (code 30) is supported -- filters out non-keyboard devices
+	var keyBits [96]byte // 768 bits covers all standard keys
+	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, f.Fd(),
+		uintptr(eviocgbit1), uintptr(unsafe.Pointer(&keyBits[0])))
+	if errno != 0 {
+		return false
+	}
+	// KEY_A = 30, byte 30/8=3, bit 30%8=6
+	return keyBits[3]&(1<<6) != 0
+}
+
+func comboStr(c hotCombo) string {
+	mod := ""
+	key := fmt.Sprintf("0x%x", c.key)
+	for name, code := range keyMap {
+		if code == c.key {
+			key = name
+		}
+		if c.modifier != 0 && code == c.modifier {
+			mod = name + "+"
 		}
 	}
-	return accessible, nil
+	return mod + key
 }
 
 // keyNameToCode converts an evdev key name like "KEY_SCROLLLOCK" to its code.
@@ -194,8 +308,12 @@ var keyMap = map[string]uint16{
 	"KEY_DELETE":     111,
 	"KEY_END":        107,
 	"KEY_PAGEDOWN":   109,
+	"KEY_BACKSLASH":  43,
+	"KEY_LEFTALT":    56,
+	"KEY_SPACE":      57,
 	"KEY_CAPSLOCK":   58,
 	"KEY_SYSRQ":     99,
+	"KEY_LEFTCTRL":   29,
 	"KEY_RIGHTCTRL":  97,
 	"KEY_LEFTMETA":   125,
 	"KEY_RIGHTMETA":  126,
