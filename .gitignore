@@ -3,7 +3,7 @@ bin/
 *.test
 *.out
 .env
-local-stt
+/local-stt
 
 # Local-only scripts (contain private IPs/config)
 setup-local.sh

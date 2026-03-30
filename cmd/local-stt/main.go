@@ -115,10 +115,10 @@ func main() {
 	if !*noTray && cfg.Tray.Enabled {
 		tray.Run(tray.Callbacks{
 			OnModeChange: func(m mode.Mode) {
-				log.Printf("tray: mode -> %s", m)
+				modeManager.SetMode(m)
 			},
 			OnToggle: func() {
-				log.Printf("tray: toggle")
+				modeManager.Toggle()
 			},
 			OnQuit: func() {
 				cancel()

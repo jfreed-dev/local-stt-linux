@@ -49,21 +49,55 @@ func NewManager(defaultMode string, pcmCh <-chan []byte, hotkeyCh <-chan hotkey.
 	return m
 }
 
-// CycleMode switches to the next mode: PTT -> VOX -> Always -> PTT.
-func (m *Manager) CycleMode() {
+// SetMode changes the current dictation mode and starts/stops recording as needed.
+func (m *Manager) SetMode(newMode Mode) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	switch m.mode {
-	case PTT:
-		m.mode = VOX
-	case VOX:
-		m.mode = Always
-	case Always:
-		m.mode = PTT
+	if m.mode == newMode {
+		return
 	}
-	log.Printf("mode: switched to %s", m.mode)
+	old := m.mode
+	m.mode = newMode
+	log.Printf("mode: %s -> %s", old, newMode)
+
+	// Stop recording if switching to PTT (requires hotkey)
+	if newMode == PTT && m.recording {
+		m.stopRecording()
+	}
+	// Start recording if switching to VOX/Always while enabled
+	if (newMode == VOX || newMode == Always) && m.enabled && !m.recording {
+		m.startRecording()
+	}
 	if m.onStatus != nil {
 		m.onStatus(m.mode, m.recording)
+	}
+}
+
+// Toggle flips the global enabled state.
+func (m *Manager) Toggle() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.enabled = !m.enabled
+	log.Printf("mode: dictation %s", map[bool]string{true: "enabled", false: "disabled"}[m.enabled])
+	if !m.enabled && m.recording {
+		m.stopRecording()
+	} else if m.enabled && (m.mode == VOX || m.mode == Always) && !m.recording {
+		m.startRecording()
+	}
+	if m.onStatus != nil {
+		m.onStatus(m.mode, m.recording)
+	}
+}
+
+// CycleMode switches to the next mode: PTT -> VOX -> Always -> PTT.
+func (m *Manager) CycleMode() {
+	switch m.mode {
+	case PTT:
+		m.SetMode(VOX)
+	case VOX:
+		m.SetMode(Always)
+	case Always:
+		m.SetMode(PTT)
 	}
 }
 
