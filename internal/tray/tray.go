@@ -60,8 +60,12 @@ func UpdateState(s State) {
 	switch {
 	case s.Recording:
 		title = "STT [REC]"
+		systray.SetIcon(iconRecording)
 	case !s.Connected:
 		title = "STT [!]"
+		systray.SetIcon(iconError)
+	default:
+		systray.SetIcon(iconIdle)
 	}
 	systray.SetTitle(title)
 	systray.SetTooltip("local-stt: " + status + " (" + string(s.Mode) + ")")
@@ -81,6 +85,7 @@ func UpdateState(s State) {
 }
 
 func onReady() {
+	systray.SetIcon(iconIdle)
 	systray.SetTitle("STT")
 	systray.SetTooltip("local-stt: Speech-to-Text Dictation")
 
