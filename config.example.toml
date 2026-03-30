@@ -1,0 +1,42 @@
+# local-stt-linux configuration
+# Copy to ~/.config/local-stt-linux/config.toml
+
+[server]
+# Aria streaming STT server WebSocket URL
+url = "ws://localhost:5182/ws/firmware"
+# Skip TLS certificate verification (for self-signed certs)
+insecure_tls = true
+
+[audio]
+# PulseAudio source name (empty = default microphone)
+# Use "pactl list sources short" to find available sources
+# For NoiseTorch: set to the virtual mic source name
+source = ""
+# Sample rate in Hz (must be 16000 for Aria STT)
+sample_rate = 16000
+# Audio chunk duration in milliseconds
+chunk_ms = 100
+
+[mode]
+# Default dictation mode: "ptt" (push-to-talk), "vox" (voice-activated), "always"
+default = "ptt"
+
+[hotkey]
+# Push-to-talk key (evdev key name)
+ptt_key = "KEY_SCROLLLOCK"
+# Toggle dictation on/off
+toggle_key = "KEY_PAUSE"
+
+[inject]
+# Keyboard injection method: "ydotool", "wtype", "xdotool"
+method = "ydotool"
+# Add trailing space after each injection
+trailing_space = true
+# Auto-capitalize first word of each dictation
+auto_capitalize = true
+# Delay between STT result and injection (ms)
+inject_delay_ms = 50
+
+[tray]
+# Show system tray icon
+enabled = true
