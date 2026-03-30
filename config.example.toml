@@ -22,7 +22,9 @@ chunk_ms = 100
 default = "ptt"
 
 [hotkey]
-# Push-to-talk key (evdev key name)
+# Push-to-talk hotkey (evdev key name or modifier+key combo)
+# Use "sudo evtest" to find key names for your keyboard
+# Examples: "KEY_F12", "KEY_LEFTCTRL+KEY_BACKSLASH", "KEY_MEDIA"
 ptt_key = "KEY_LEFTCTRL+KEY_BACKSLASH"
 # Toggle dictation on/off
 toggle_key = "KEY_PAUSE"
