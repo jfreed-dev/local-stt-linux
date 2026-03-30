@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/jfreed-dev/local-stt-linux/internal/hotkey"
+	"github.com/jfreed-dev/local-stt-linux/internal/sound"
 	"github.com/jfreed-dev/local-stt-linux/internal/stt"
 )
 
@@ -173,6 +174,7 @@ func (m *Manager) Run(ctx context.Context) error {
 
 func (m *Manager) startRecording() {
 	m.recording = true
+	sound.PlayStart()
 	select {
 	case m.streamCh <- stt.StreamEvent{Type: "start"}:
 	default:
@@ -185,6 +187,7 @@ func (m *Manager) startRecording() {
 
 func (m *Manager) stopRecording() {
 	m.recording = false
+	sound.PlayStop()
 	select {
 	case m.streamCh <- stt.StreamEvent{Type: "end"}:
 	default:

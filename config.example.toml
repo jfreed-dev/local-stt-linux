@@ -39,6 +39,15 @@ auto_capitalize = true
 # Delay between STT result and injection (ms)
 inject_delay_ms = 50
 
+[postproc]
+# LLM post-processing to fix homophones, grammar, and punctuation
+# Sends raw STT text through a local LLM for correction before typing
+enabled = false
+# OpenAI-compatible chat completions endpoint
+endpoint = "http://localhost:8003"
+# Model name (must match what the endpoint serves)
+model = "mlx-community/Mistral-Nemo-Instruct-2407-4bit"
+
 [tray]
 # Show system tray icon
 enabled = true

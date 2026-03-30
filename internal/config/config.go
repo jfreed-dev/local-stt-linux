@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig `toml:"server"`
-	Audio  AudioConfig  `toml:"audio"`
-	Mode   ModeConfig   `toml:"mode"`
-	Hotkey HotkeyConfig `toml:"hotkey"`
-	Inject InjectConfig `toml:"inject"`
-	Tray   TrayConfig   `toml:"tray"`
+	Server   ServerConfig   `toml:"server"`
+	Audio    AudioConfig    `toml:"audio"`
+	Mode     ModeConfig     `toml:"mode"`
+	Hotkey   HotkeyConfig   `toml:"hotkey"`
+	Inject   InjectConfig   `toml:"inject"`
+	Tray     TrayConfig     `toml:"tray"`
+	PostProc PostProcConfig `toml:"postproc"`
 }
 
 type ServerConfig struct {
@@ -47,6 +48,12 @@ type TrayConfig struct {
 	Enabled bool `toml:"enabled"`
 }
 
+type PostProcConfig struct {
+	Enabled  bool   `toml:"enabled"`
+	Endpoint string `toml:"endpoint"`
+	Model    string `toml:"model"`
+}
+
 func Defaults() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -73,6 +80,11 @@ func Defaults() *Config {
 		},
 		Tray: TrayConfig{
 			Enabled: true,
+		},
+		PostProc: PostProcConfig{
+			Enabled:  false,
+			Endpoint: "http://localhost:8003",
+			Model:    "mlx-community/Mistral-Nemo-Instruct-2407-4bit",
 		},
 	}
 }
