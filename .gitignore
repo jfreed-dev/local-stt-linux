@@ -3,3 +3,8 @@ bin/
 *.test
 *.out
 .env
+local-stt
+
+# Local-only scripts (contain private IPs/config)
+setup-local.sh
+config.local.toml
