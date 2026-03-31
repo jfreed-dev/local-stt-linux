@@ -25,3 +25,10 @@
 - Keyboard injection uses ydotool on Wayland (COSMIC desktop).
 - NoiseTorch provides a virtual PulseAudio source for noise cancellation -- the app selects it by source name.
 - Config lives at `~/.config/local-stt-linux/config.toml`.
+- Private IPs and credentials go only in git-ignored files (setup-local.sh, config.local.toml). Use placeholders in committed code.
+- LLM post-processing uses an OpenAI-compatible chat completions endpoint (configurable, disabled by default).
+- PTT audio feedback uses freedesktop system sounds via pw-play/paplay.
+- Tray icons are generated programmatically in Go (internal/tray/icons.go) -- no external image files.
+- Hotkeys support modifier+key combos (e.g. KEY_LEFTCTRL+KEY_BACKSLASH) parsed from config.
+- The hotkey listener filters /dev/input devices to actual keyboards via ioctl EVIOCGBIT.
+- keyd key remapper is active on the dev system -- hotkey listener monitors both physical and virtual keyboard devices.
