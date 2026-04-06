@@ -73,7 +73,8 @@ func main() {
 	sttClient := stt.NewClient(cfg.Server.URL, cfg.Server.InsecureTLS, streamCh, partialCh, finalCh)
 
 	// LLM post-processor (corrects homophones, grammar, punctuation)
-	proc := postproc.NewProcessor(cfg.PostProc.Endpoint, cfg.PostProc.Model, cfg.PostProc.Enabled)
+	apiKey := cfg.PostProc.ResolveAPIKey()
+	proc := postproc.NewProcessor(cfg.PostProc.Endpoint, cfg.PostProc.Model, apiKey, cfg.PostProc.Enabled)
 	correctedCh := make(chan string, 8)
 
 	// Keyboard injector reads from correctedCh (post-processed text)

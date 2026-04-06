@@ -157,9 +157,10 @@ func (c *Client) readLoop(ctx context.Context, conn *websocket.Conn) {
 		}
 
 		var msg struct {
-			Type    string `json:"type"`
-			Text    string `json:"text"`
-			IsFinal bool   `json:"is_final"`
+			Type       string `json:"type"`
+			Text       string `json:"text"`
+			Transcript string `json:"transcript"`
+			IsFinal    bool   `json:"is_final"`
 		}
 		if err := json.Unmarshal(data, &msg); err != nil {
 			continue // ignore binary frames (TTS audio) and malformed JSON
@@ -175,6 +176,14 @@ func (c *Client) readLoop(ctx context.Context, conn *websocket.Conn) {
 			if msg.Text != "" {
 				select {
 				case c.finalCh <- msg.Text:
+				default:
+				}
+			}
+		case "stt_result":
+			// Batch STT result from server — uses "transcript" field
+			if msg.Transcript != "" {
+				select {
+				case c.finalCh <- msg.Transcript:
 				default:
 				}
 			}

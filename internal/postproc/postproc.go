@@ -18,14 +18,16 @@ const systemPrompt = `Fix only clear homophone errors and obvious grammar mistak
 type Processor struct {
 	endpoint string
 	model    string
+	apiKey   string
 	client   *http.Client
 	enabled  bool
 }
 
-func NewProcessor(endpoint, model string, enabled bool) *Processor {
+func NewProcessor(endpoint, model, apiKey string, enabled bool) *Processor {
 	return &Processor{
 		endpoint: endpoint,
 		model:    model,
+		apiKey:   apiKey,
 		client: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -108,6 +110,9 @@ func (p *Processor) query(ctx context.Context, text string) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if p.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+p.apiKey)
+	}
 
 	resp, err := p.client.Do(req)
 	if err != nil {

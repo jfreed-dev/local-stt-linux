@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -49,9 +50,31 @@ type TrayConfig struct {
 }
 
 type PostProcConfig struct {
-	Enabled  bool   `toml:"enabled"`
-	Endpoint string `toml:"endpoint"`
-	Model    string `toml:"model"`
+	Enabled    bool   `toml:"enabled"`
+	Endpoint   string `toml:"endpoint"`
+	Model      string `toml:"model"`
+	APIKey     string `toml:"api_key"`
+	APIKeyFile string `toml:"api_key_file"`
+}
+
+// ResolveAPIKey returns the API key, reading from api_key_file if api_key is empty.
+func (p *PostProcConfig) ResolveAPIKey() string {
+	if p.APIKey != "" {
+		return p.APIKey
+	}
+	if p.APIKeyFile != "" {
+		path := p.APIKeyFile
+		if strings.HasPrefix(path, "~/") {
+			if home, err := os.UserHomeDir(); err == nil {
+				path = filepath.Join(home, path[2:])
+			}
+		}
+		data, err := os.ReadFile(path)
+		if err == nil {
+			return strings.TrimSpace(string(data))
+		}
+	}
+	return ""
 }
 
 func Defaults() *Config {
@@ -83,8 +106,8 @@ func Defaults() *Config {
 		},
 		PostProc: PostProcConfig{
 			Enabled:  false,
-			Endpoint: "http://localhost:8003",
-			Model:    "mlx-community/Mistral-Nemo-Instruct-2407-4bit",
+			Endpoint: "https://api.openai.com",
+			Model:    "gpt-4o-mini",
 		},
 	}
 }
