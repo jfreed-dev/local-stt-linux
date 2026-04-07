@@ -99,7 +99,7 @@ func Defaults() *Config {
 			Method:        "ydotool",
 			TrailingSpace: true,
 			AutoCap:       true,
-			InjectDelayMs: 50,
+			InjectDelayMs: 25,
 		},
 		Tray: TrayConfig{
 			Enabled: true,

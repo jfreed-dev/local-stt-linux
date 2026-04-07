@@ -28,13 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Default PTT hotkey changed from KEY_SCROLLLOCK to KEY_LEFTCTRL+KEY_BACKSLASH
-  (Ctrl+\).
+  (Ctrl+\). Recommended: use a non-modifier key like KEY_F12 to avoid modifier
+  bleed into ydotool injection.
+- `inject_delay_ms` now controls ydotool's `--key-delay` (per-keystroke delay)
+  instead of a single pre-injection sleep. Default changed from 50 to 25ms.
 - Architecture diagram updated: data flow now includes LLM post-processing step
   between STT and keyboard injection.
+
+### Added
+- Timing logs for postproc round-trip and keystroke injection duration.
 
 ### Fixed
 - System tray mode switching and toggle now actually change the mode (were no-ops).
 - .gitignore no longer blocks cmd/local-stt/ directory.
+- Modifier keys (Ctrl, Alt, Shift) no longer bleed into ydotool keystroke injection
+  when using modifier+key PTT combos. Using a non-modifier PTT key (e.g. F12) is
+  recommended to avoid this entirely.
 
 ## [0.1.0] - 2026-03-30
 

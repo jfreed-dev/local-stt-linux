@@ -36,8 +36,8 @@ method = "ydotool"
 trailing_space = true
 # Auto-capitalize first word of each dictation
 auto_capitalize = true
-# Delay between STT result and injection (ms)
-inject_delay_ms = 50
+# Per-keystroke delay for ydotool injection (ms)
+inject_delay_ms = 25
 
 [postproc]
 # LLM post-processing to fix homophones, grammar, and punctuation

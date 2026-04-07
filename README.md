@@ -127,7 +127,7 @@ Switch modes via the system tray menu or the mode cycle hotkey.
 | `inject.method` | Injection tool: `ydotool`, `wtype`, `xdotool` | `ydotool` |
 | `inject.trailing_space` | Add space after each injection | `true` |
 | `inject.auto_capitalize` | Capitalize first word | `true` |
-| `inject.inject_delay_ms` | Delay before typing (ms) | `50` |
+| `inject.inject_delay_ms` | Per-keystroke delay for ydotool (ms) | `25` |
 
 ### LLM Post-Processing
 
