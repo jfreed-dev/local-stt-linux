@@ -44,13 +44,11 @@ func (inj *Injector) Run(ctx context.Context) error {
 				continue
 			}
 
-			if inj.delayMs > 0 {
-				time.Sleep(time.Duration(inj.delayMs) * time.Millisecond)
-			}
-
+			t0 := time.Now()
 			if err := inj.typeText(ctx, text); err != nil {
 				log.Printf("inject: %v", err)
 			}
+			log.Printf("inject: typed %d chars in %dms", len(text), time.Since(t0).Milliseconds())
 		}
 	}
 }
@@ -74,7 +72,7 @@ func (inj *Injector) processText(text string) string {
 func (inj *Injector) typeText(ctx context.Context, text string) error {
 	switch inj.method {
 	case "ydotool":
-		return runCmd(ctx, "ydotool", "type", "--", text)
+		return runCmd(ctx, "ydotool", "type", "--key-delay", fmt.Sprintf("%d", inj.delayMs), "--", text)
 	case "wtype":
 		return runCmd(ctx, "wtype", text)
 	case "xdotool":

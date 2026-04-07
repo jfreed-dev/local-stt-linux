@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jfreed-dev/local-stt-linux/internal/audio"
 	"github.com/jfreed-dev/local-stt-linux/internal/config"
@@ -99,7 +100,9 @@ func main() {
 				if !ok {
 					return
 				}
+				t0 := time.Now()
 				corrected := proc.Process(ctx, text)
+				log.Printf("postproc: %dms", time.Since(t0).Milliseconds())
 				select {
 				case correctedCh <- corrected:
 				default:
